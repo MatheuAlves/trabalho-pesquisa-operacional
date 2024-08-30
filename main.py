@@ -17,7 +17,7 @@ def readFile():
                 name = values[0].strip()
                 nutrients_values = list(map(float, values[1].strip().split(' ')))
                 nutrients.update({i+1: {'name': name, 'carbs': nutrients_values[0], 'proteins': nutrients_values[1]}})
-
+            
             # Pegando os coeficientes de perda
             month_key = list(map(int, file.readline().strip().split(' ')))
             month_weight = list(map(float, file.readline().strip().split(' ')))
