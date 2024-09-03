@@ -2,6 +2,7 @@
 from sys import argv
 import gurobipy as gp
 from gurobipy import GRB
+from tabulate import tabulate
 
 def readFile():
     try:
@@ -66,60 +67,73 @@ months = len(loss_coeficients)
 entities = len(needed_carbs)
 
 # Criando um novo modelo
-# model = gp.Model()
-# model.setParam(GRB.Param.LogToConsole, 1)
+model = gp.Model()
+model.setParam(GRB.Param.LogToConsole, 1)
+model.setParam('MIPGap', 0.001)
 
 # Gerando as variáveis do problema
-# x = [model.addVar(lb=0, ub=GRB.INFINITY, vtype=GRB.CONTINUOUS) for i in range(len(food_names)) for j in range(len(loss_coeficients)) for k in range(len(needed_carbs))]
-x = [f'{i+1}, {j+1}, {k+1}' for i in range(foods) for j in range(months) for k in range(entities)]
+x = [model.addVar(lb=0, ub=GRB.INFINITY, vtype=GRB.INTEGER) for i in range(foods) for j in range(months) for k in range(entities)]
 
 # Definição da função objetivo
-# obj = gp.LinExpr()
-obj = ''
+obj = gp.LinExpr()
 for i in range(foods):
     for j in range(months):
         for k in range(entities):
             index_x = (i * months * entities) + (j * entities) + k
-            # obj = obj + x[index_x] * loss_coeficients[j+1]
-            obj = obj + '(' + x[index_x] + ') * ' + str(loss_coeficients[j+1]) + '\n'
-# model.setObjective(obj, sense=GRB.MINIMIZE)
+            obj = obj + x[index_x] * loss_coeficients[j+1]
+model.setObjective(obj, sense=GRB.MINIMIZE)
 
 # Define as restrições de estoque
 for i in range(foods):
     for j in range(months):
-        # expr = gp.LinExpr()
-        expr = ''
+        expr = gp.LinExpr()
         for k in range(entities):
             index_x = (i * months * entities) + (j * entities) + k
-            # expr = expr + x[index_x]
-            expr = expr + '(' + x[index_x] + ')'
-        expr = expr + ' <= ' + str(stock[i+1][j+1])
-        # model.addConstr(expr <= stock[i+1][j+1])
+            expr = expr + x[index_x]
+        model.addConstr(expr <= stock[i+1][j+1])
 
 # Define as restrições de carboidratos
 for k in range(entities):
-    # expr = gp.LinExpr()
-    expr = ''
+    expr = gp.LinExpr()
     for i in range(foods):
         for j in range(months):
             index_x = (i * months * entities) + (j * entities) + k
-            # expr = expr + x[index_x] * nutrients[i+1]['carbs']
-            expr = expr + '(' + x[index_x] + ') * ' + str(nutrients[i+1]['carbs']) + ' + '
-        expr = expr + ' >= ' + str(needed_carbs[k+1])
-        # model.addConstr(expr >= needed_carbs[k+1])
+            expr = expr + x[index_x] * nutrients[i+1]['carbs']
+    model.addConstr(expr >= needed_carbs[k+1])
 
 # Define as restrições de proteínas
 for k in range(entities):
-    # expr = gp.LinExpr()
-    expr = ''
+    expr = gp.LinExpr()
     for i in range(foods):
         for j in range(months):
             index_x = (i * months * entities) + (j * entities) + k
-            # expr = expr + x[index_x] * nutrients[i+1]['proteins']
-            expr = expr + '(' + x[index_x] + ') * ' + str(nutrients[i+1]['proteins']) + ' + '
-        expr = expr + ' >= ' + str(needed_proteins[k+1])
-        print(expr)
-        # model.addConstr(expr >= needed_proteins[k+1])
+            expr = expr + x[index_x] * nutrients[i+1]['proteins']
+    model.addConstr(expr >= needed_proteins[k+1])
 
 # Resolvendo o problema
-# model.optimize()
+model.optimize()
+data  = []
+
+header = []
+header.append('Alimento\Mês')
+for i in loss_coeficients.keys():
+    header.append(i)
+header.append('Total')
+
+data.append(header)
+
+for i in range(foods):
+    row = []
+    sum_food = 0
+    row.append(nutrients[i+1]['name'])
+    for j in range(months):
+        sum_month = 0
+        for k in range(entities):
+            index_x = (i * months * entities) + (j * entities) + k
+            sum_month += x[index_x].X
+        sum_food += sum_month
+        row.append(sum_month)
+    row.append(sum_food)
+    data.append(row)
+    
+print(tabulate(data, headers="firstrow", tablefmt="grid"))
