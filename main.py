@@ -72,7 +72,7 @@ if macronutrients != None:
     # Criando um novo modelo
     model = gp.Model()
     model.setParam(GRB.Param.LogToConsole, 1)
-    model.setParam('MIPGap', 0.001)
+    model.setParam('MIPGapAbs', 0.001)
 
     # Gerando as variáveis do problema
     x = [model.addVar(lb=0, ub=GRB.INFINITY, vtype=GRB.INTEGER) for i in range(foods) for j in range(months) for k in range(entities)]
